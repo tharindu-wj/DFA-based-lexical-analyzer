@@ -1,15 +1,21 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+
+// maximum number of characters in a single lexeme
+#define LEXEME_MAX 256
 
 // Define an enumeration for the DFA's states.
 typedef enum {
     START,
-    IN_DELIMITER
+    IN_DELIMITER,
+    IN_IDENTIFIER
 } State;
 
 // Define the token types.
 typedef enum {
     TOKEN_DELIMITER,
+    TOKEN_IDENTIFIER
 } TokenType;
 
 int is_whitespace(int c) {
@@ -23,9 +29,21 @@ int is_delimiter(int c) {
            c == '[' || c == ']';
 }
 
+// if the character can start an identifier (letter or underscore)
+int is_identifier_start(int c) {
+    return (c >= 'a' && c <= 'z') ||
+           (c >= 'A' && c <= 'Z') ||
+            c == '_';
+}
+
+// if the character can continue an identifier (letter, digit, or underscore)
+int is_identifier_continue(int c) {
+    return is_identifier_start(c) || (c >= '0' && c <= '9');
+}
+
 // Prints a token to stdout in the standard output format.
-void log(const char *lexeme, TokenType type) {
-    const char *names[] = { "DELIMITER" };
+void logger(const char *lexeme, TokenType type) {
+    const char *names[] = { "DELIMITER", "IDENTIFIER" };
     printf("%-10s \"%s\"\n", names[type], lexeme);
 }
 
@@ -43,10 +61,22 @@ State transition(State currentState, char input) {
             // enter accept state.
             if (is_delimiter(input))  return IN_DELIMITER;
 
+            // (START, letter | _) = IN_IDENTIFIER
+            // begin accumulating identifier
+            if (is_identifier_start(input)) return IN_IDENTIFIER;
+
             // (START, other) = START
             return START;
 
         case IN_DELIMITER:
+            return START;
+
+        case IN_IDENTIFIER:
+            // (IN_IDENTIFIER, letter | digit | _) = IN_IDENTIFIER
+            // continue accumulating
+            if (is_identifier_continue(input)) return IN_IDENTIFIER;
+            // (IN_ID, other) = START
+            // token ends
             return START;
     }
 
@@ -70,22 +100,69 @@ int main(int argc, char **argv) {
     // Initialise current state as START
     State currentState = START;
 
-    long count = 0; //
+    char  lexeme[LEXEME_MAX];
+    char *write = lexeme;
+    char *limit = lexeme + LEXEME_MAX - 1;
 
     // process each character of the input file.
-    int c;
-    while ((c = fgetc(f)) != EOF) {
-        currentState = transition(currentState, c);
+    char current_character;
+    while ((current_character = fgetc(f)) != EOF) {
+        State next = transition(currentState, current_character);
 
-        // if entered IN_DELIMITER -> log the token immediately.
-        // no accumulation needed.
-        if (currentState == IN_DELIMITER) {
-            char buf[2] = { (char)c, '\0' };
-            log(buf, TOKEN_DELIMITER);
+        switch (currentState) {
+            case START:
+                if (next == IN_DELIMITER) {
+                    // delimiter is a single character token
+                    // log immediately without accumulation.
+                    char buf[2] = { (char)current_character, '\0' };
+                    logger(buf, TOKEN_DELIMITER);
+                    next = START;
+                } else if (next == IN_IDENTIFIER) {
+                    // start a new identifier
+                    // reset write pointer and store first char.
+                    write = lexeme;
+                    *write++ = (char)current_character;
+                }
+                break;
 
-            // Transition back to START after logging.
-            currentState = transition(currentState, c);
+            case IN_IDENTIFIER:
+                if (next == IN_IDENTIFIER) {
+                    *write++ = (char)current_character;
+                } else {
+                    // identifier ended
+                    *write = '\0';
+                    size_t length = (size_t)(write - lexeme);
+
+                    char  *token = malloc(length + 1);
+                    memcpy(token, lexeme, length + 1);
+
+                    logger(token, TOKEN_IDENTIFIER);
+                    free(token);
+
+                    ungetc(current_character, f);
+
+                    next  = START;
+                    write = lexeme;
+                }
+                break;
+
+            case IN_DELIMITER:
+                break;
         }
+
+        currentState = next;
+    }
+
+    // flush any identifier still accumulated at end
+    if (currentState == IN_IDENTIFIER) {
+        *write = '\0';
+        size_t length = (size_t)(write - lexeme);
+        char  *token = malloc(length + 1);
+        memcpy(token, lexeme, length + 1);
+
+        logger(token, TOKEN_IDENTIFIER);
+
+        free(token);
     }
 
     fclose(f);

@@ -1,0 +1,3 @@
+int _myVar99 = 42;
+while (0) { }
+char x;
