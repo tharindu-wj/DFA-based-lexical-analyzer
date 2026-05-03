@@ -15,8 +15,13 @@ typedef enum {
 // Define the token types.
 typedef enum {
     TOKEN_DELIMITER,
-    TOKEN_IDENTIFIER
+    TOKEN_IDENTIFIER,
+    TOKEN_KEYWORD
 } TokenType;
+
+const char *KEYWORDS[] = {
+    "int", "char", "if", "else", "while", "for", "do", "return"
+};
 
 int is_whitespace(int c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
@@ -41,9 +46,16 @@ int is_identifier_continue(int c) {
     return is_identifier_start(c) || (c >= '0' && c <= '9');
 }
 
+TokenType classify_identifier(const char *lexeme) {
+    for (int i = 0; KEYWORDS[i] != NULL; i++) {
+        if (strcmp(lexeme, KEYWORDS[i]) == 0) return TOKEN_KEYWORD;
+    }
+    return TOKEN_IDENTIFIER;
+}
+
 // Prints a token to stdout in the standard output format.
 void logger(const char *lexeme, TokenType type) {
-    const char *names[] = { "DELIMITER", "IDENTIFIER" };
+    const char *names[] = { "DELIMITER", "IDENTIFIER", "KEYWORD" };
     printf("%-10s \"%s\"\n", names[type], lexeme);
 }
 
@@ -136,7 +148,8 @@ int main(int argc, char **argv) {
                     char  *token = malloc(length + 1);
                     memcpy(token, lexeme, length + 1);
 
-                    logger(token, TOKEN_IDENTIFIER);
+                    TokenType type = classify_identifier(token);
+                    logger(token, type);
                     free(token);
 
                     ungetc(current_character, f);
