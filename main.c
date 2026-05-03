@@ -4,10 +4,29 @@
 // Define an enumeration for the DFA's states.
 typedef enum {
     START,
+    IN_DELIMITER
 } State;
+
+// Define the token types.
+typedef enum {
+    TOKEN_DELIMITER,
+} TokenType;
 
 int is_whitespace(int c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+}
+
+int is_delimiter(int c) {
+    return c == ';' || c == ',' ||
+           c == '(' || c == ')' ||
+           c == '{' || c == '}' ||
+           c == '[' || c == ']';
+}
+
+// Prints a token to stdout in the standard output format.
+void log(const char *lexeme, TokenType type) {
+    const char *names[] = { "DELIMITER" };
+    printf("%-10s \"%s\"\n", names[type], lexeme);
 }
 
 // This function embodies the transition function δ.
@@ -16,9 +35,21 @@ int is_whitespace(int c) {
 State transition(State currentState, char input) {
     switch (currentState) {
         case START:
-            (void)input;
+            // (START, whitespace) = START
+            // stay in START.
+            if (is_whitespace(input)) return START;
+
+            // (START, delimiter_character) = IN_DELIMITER
+            // enter accept state.
+            if (is_delimiter(input))  return IN_DELIMITER;
+
+            // (START, other) = START
+            return START;
+
+        case IN_DELIMITER:
             return START;
     }
+
     // This return serves as a fallback.
     return currentState;
 }
@@ -46,9 +77,14 @@ int main(int argc, char **argv) {
     while ((c = fgetc(f)) != EOF) {
         currentState = transition(currentState, c);
 
-        // log characters without white spaces
-        if (!is_whitespace(c)) {
-            printf("character: '%c'\n", c);
+        // if entered IN_DELIMITER -> log the token immediately.
+        // no accumulation needed.
+        if (currentState == IN_DELIMITER) {
+            char buf[2] = { (char)c, '\0' };
+            log(buf, TOKEN_DELIMITER);
+
+            // Transition back to START after logging.
+            currentState = transition(currentState, c);
         }
     }
 
