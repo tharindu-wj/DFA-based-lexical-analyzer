@@ -6,6 +6,10 @@ typedef enum {
     START,
 } State;
 
+int is_whitespace(int c) {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+}
+
 // This function embodies the transition function δ.
 // It takes the current state and the next input character,
 // then returns the next state according to our DFA rules.
@@ -41,12 +45,14 @@ int main(int argc, char **argv) {
     int c;
     while ((c = fgetc(f)) != EOF) {
         currentState = transition(currentState, c);
-        count++;
+
+        // log characters without white spaces
+        if (!is_whitespace(c)) {
+            printf("character: '%c'\n", c);
+        }
     }
 
     fclose(f);
-    
-    printf("%ld\n", count);
-    
+
     return 0;
 }
