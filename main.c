@@ -10,7 +10,8 @@ typedef enum {
     START,
     IN_DELIMITER,
     IN_IDENTIFIER,
-    IN_NUMBER
+    IN_NUMBER,
+    IN_OPERATOR
 } State;
 
 // Define the token types.
@@ -18,7 +19,8 @@ typedef enum {
     TOKEN_DELIMITER,
     TOKEN_IDENTIFIER,
     TOKEN_KEYWORD,
-    TOKEN_NUMBER
+    TOKEN_NUMBER,
+    TOKEN_OPERATOR
 } TokenType;
 
 const char *KEYWORDS[] = {
@@ -30,21 +32,20 @@ int is_whitespace(int c) {
 }
 
 int is_delimiter(int c) {
-    return c == ';' || c == ',' ||
-           c == '(' || c == ')' ||
-           c == '{' || c == '}' ||
-           c == '[' || c == ']';
+    return c == ';' || c == ',' || c == '(' || c == ')' || c == '{' || c == '}' || c == '[' || c == ']';
 }
 
 int is_digit(int c) {
     return c >= '0' && c <= '9';
 }
 
+int is_operator(int c) {
+    return c == '+' || c == '-' || c == '*' || c == '/' || c == '=' || c == '<' || c == '>' || c == '!';
+}
+
 // if the character can start an identifier (letter or underscore)
 int is_identifier_start(int c) {
-    return (c >= 'a' && c <= 'z') ||
-           (c >= 'A' && c <= 'Z') ||
-           c == '_';
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
 // if the character can continue an identifier (letter, digit, or underscore)
@@ -61,7 +62,7 @@ TokenType classify_identifier(const char *lexeme) {
 
 // Prints a token to stdout in the standard output format.
 void logger(const char *lexeme, TokenType type) {
-    const char *names[] = {"DELIMITER", "IDENTIFIER", "KEYWORD", "NUMBER"};
+    const char *names[] = {"DELIMITER", "IDENTIFIER", "KEYWORD", "NUMBER", "OPERATOR"};
     printf("%-10s \"%s\"\n", names[type], lexeme);
 }
 
@@ -86,6 +87,9 @@ State transition(State currentState, char input) {
             // (START, digit) = IN_NUMBER
             if (is_digit(input)) return IN_NUMBER;
 
+            // (START, operator_char) = IN_OPERATOR
+            if (is_operator(input)) return IN_OPERATOR;
+
             // (START, other) = START
             return START;
 
@@ -106,6 +110,9 @@ State transition(State currentState, char input) {
             if (is_digit(input)) return IN_NUMBER;
             // (IN_NUMBER, other) = START
             // token ends
+            return START;
+
+        case IN_OPERATOR:
             return START;
     }
 
@@ -142,7 +149,7 @@ int main(int argc, char **argv) {
             case START:
                 if (next == IN_DELIMITER) {
                     // delimiter is a single character token
-                    // log immediately without accumulation.
+                    // log immediately without accumulation
                     char buf[2] = {(char) current_character, '\0'};
                     logger(buf, TOKEN_DELIMITER);
                     next = START;
@@ -155,6 +162,12 @@ int main(int argc, char **argv) {
                     // start accumulating digits
                     write = lexeme;
                     *write++ = (char) current_character;
+                } else if (next == IN_OPERATOR) {
+                    // operator is a single character token
+                    // log immediately without accumulation
+                    char buf[2] = {(char) current_character, '\0'};
+                    logger(buf, TOKEN_OPERATOR);
+                    next = START;
                 }
                 break;
 
@@ -202,6 +215,9 @@ int main(int argc, char **argv) {
                 break;
 
             case IN_DELIMITER:
+                break;
+
+            case IN_OPERATOR:
                 break;
         }
 
