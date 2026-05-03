@@ -11,7 +11,8 @@ typedef enum {
     IN_DELIMITER,
     IN_IDENTIFIER,
     IN_NUMBER,
-    IN_OPERATOR
+    IN_OPERATOR,
+    ERROR
 } State;
 
 // Define the token types.
@@ -90,8 +91,9 @@ State transition(State currentState, char input) {
             // (START, operator_char) = IN_OPERATOR
             if (is_operator(input)) return IN_OPERATOR;
 
-            // (START, other) = START
-            return START;
+            // (START, other) = ERROR
+            // unrecognised character
+            return ERROR;
 
         case IN_DELIMITER:
             return START;
@@ -113,6 +115,11 @@ State transition(State currentState, char input) {
             return START;
 
         case IN_OPERATOR:
+            return START;
+
+        case ERROR:
+            // skip one unrecognise character
+            // return to START
             return START;
     }
 
@@ -168,6 +175,9 @@ int main(int argc, char **argv) {
                     char buf[2] = {(char) current_character, '\0'};
                     logger(buf, TOKEN_OPERATOR);
                     next = START;
+                } else if (next == ERROR) {
+                    printf("ERROR: unrecognised character '%c'\n", current_character);
+                    next = START;
                 }
                 break;
 
@@ -221,6 +231,7 @@ int main(int argc, char **argv) {
                 break;
         }
 
+        // transition to the next state based on the input
         currentState = next;
     }
 
