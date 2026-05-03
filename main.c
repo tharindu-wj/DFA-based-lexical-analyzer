@@ -9,14 +9,16 @@
 typedef enum {
     START,
     IN_DELIMITER,
-    IN_IDENTIFIER
+    IN_IDENTIFIER,
+    IN_NUMBER
 } State;
 
 // Define the token types.
 typedef enum {
     TOKEN_DELIMITER,
     TOKEN_IDENTIFIER,
-    TOKEN_KEYWORD
+    TOKEN_KEYWORD,
+    TOKEN_NUMBER
 } TokenType;
 
 const char *KEYWORDS[] = {
@@ -34,11 +36,15 @@ int is_delimiter(int c) {
            c == '[' || c == ']';
 }
 
+int is_digit(int c) {
+    return c >= '0' && c <= '9';
+}
+
 // if the character can start an identifier (letter or underscore)
 int is_identifier_start(int c) {
     return (c >= 'a' && c <= 'z') ||
            (c >= 'A' && c <= 'Z') ||
-            c == '_';
+           c == '_';
 }
 
 // if the character can continue an identifier (letter, digit, or underscore)
@@ -55,7 +61,7 @@ TokenType classify_identifier(const char *lexeme) {
 
 // Prints a token to stdout in the standard output format.
 void logger(const char *lexeme, TokenType type) {
-    const char *names[] = { "DELIMITER", "IDENTIFIER", "KEYWORD" };
+    const char *names[] = {"DELIMITER", "IDENTIFIER", "KEYWORD", "NUMBER"};
     printf("%-10s \"%s\"\n", names[type], lexeme);
 }
 
@@ -71,11 +77,14 @@ State transition(State currentState, char input) {
 
             // (START, delimiter_character) = IN_DELIMITER
             // enter accept state.
-            if (is_delimiter(input))  return IN_DELIMITER;
+            if (is_delimiter(input)) return IN_DELIMITER;
 
             // (START, letter | _) = IN_IDENTIFIER
             // begin accumulating identifier
             if (is_identifier_start(input)) return IN_IDENTIFIER;
+
+            // (START, digit) = IN_NUMBER
+            if (is_digit(input)) return IN_NUMBER;
 
             // (START, other) = START
             return START;
@@ -88,6 +97,14 @@ State transition(State currentState, char input) {
             // continue accumulating
             if (is_identifier_continue(input)) return IN_IDENTIFIER;
             // (IN_ID, other) = START
+            // token ends
+            return START;
+
+        case IN_NUMBER:
+            // (IN_NUMBER, digit) = IN_NUMBER
+            // continue accumulating
+            if (is_digit(input)) return IN_NUMBER;
+            // (IN_NUMBER, other) = START
             // token ends
             return START;
     }
@@ -112,7 +129,7 @@ int main(int argc, char **argv) {
     // Initialise current state as START
     State currentState = START;
 
-    char  lexeme[LEXEME_MAX];
+    char lexeme[LEXEME_MAX];
     char *write = lexeme;
     char *limit = lexeme + LEXEME_MAX - 1;
 
@@ -126,26 +143,30 @@ int main(int argc, char **argv) {
                 if (next == IN_DELIMITER) {
                     // delimiter is a single character token
                     // log immediately without accumulation.
-                    char buf[2] = { (char)current_character, '\0' };
+                    char buf[2] = {(char) current_character, '\0'};
                     logger(buf, TOKEN_DELIMITER);
                     next = START;
                 } else if (next == IN_IDENTIFIER) {
                     // start a new identifier
                     // reset write pointer and store first char.
                     write = lexeme;
-                    *write++ = (char)current_character;
+                    *write++ = (char) current_character;
+                } else if (next == IN_NUMBER) {
+                    // start accumulating digits
+                    write = lexeme;
+                    *write++ = (char) current_character;
                 }
                 break;
 
             case IN_IDENTIFIER:
                 if (next == IN_IDENTIFIER) {
-                    *write++ = (char)current_character;
+                    *write++ = (char) current_character;
                 } else {
                     // identifier ended
                     *write = '\0';
-                    size_t length = (size_t)(write - lexeme);
+                    size_t length = (size_t) (write - lexeme);
 
-                    char  *token = malloc(length + 1);
+                    char *token = malloc(length + 1);
                     memcpy(token, lexeme, length + 1);
 
                     TokenType type = classify_identifier(token);
@@ -154,7 +175,28 @@ int main(int argc, char **argv) {
 
                     ungetc(current_character, f);
 
-                    next  = START;
+                    next = START;
+                    write = lexeme;
+                }
+                break;
+
+            case IN_NUMBER:
+                if (next == IN_NUMBER) {
+                    *write++ = (char) current_character;
+                } else {
+                    // number ended
+                    *write = '\0';
+                    size_t length = (size_t) (write - lexeme);
+
+                    char *token = malloc(length + 1);
+                    memcpy(token, lexeme, length + 1);
+
+                    logger(token, TOKEN_NUMBER);
+                    free(token);
+
+                    ungetc(current_character, f);
+
+                    next = START;
                     write = lexeme;
                 }
                 break;
@@ -167,14 +209,17 @@ int main(int argc, char **argv) {
     }
 
     // flush any identifier still accumulated at end
-    if (currentState == IN_IDENTIFIER) {
+    if (currentState == IN_IDENTIFIER || currentState == IN_NUMBER) {
         *write = '\0';
-        size_t length = (size_t)(write - lexeme);
-        char  *token = malloc(length + 1);
+        size_t length = (size_t) (write - lexeme);
+        char *token = malloc(length + 1);
         memcpy(token, lexeme, length + 1);
-
-        logger(token, TOKEN_IDENTIFIER);
-
+        if (currentState == IN_IDENTIFIER) {
+            TokenType type = classify_identifier(token);
+            logger(token, type);
+        } else {
+            logger(token, TOKEN_NUMBER);
+        }
         free(token);
     }
 
