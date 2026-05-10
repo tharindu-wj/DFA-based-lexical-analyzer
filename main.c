@@ -8,10 +8,10 @@
 // Define an enumeration for the DFA's states.
 typedef enum {
     START,
-    IN_DELIMITER,
-    IN_IDENTIFIER,
-    IN_NUMBER,
-    IN_OPERATOR,
+    DELIMITER,
+    IDENTIFIER,
+    NUMBER,
+    OPERATOR,
     ERROR
 } State;
 
@@ -77,44 +77,44 @@ State transition(State currentState, char input) {
             // stay in START.
             if (is_whitespace(input)) return START;
 
-            // (START, delimiter_character) = IN_DELIMITER
+            // (START, delimiter_character) = DELIMITER
             // enter accept state.
-            if (is_delimiter(input)) return IN_DELIMITER;
+            if (is_delimiter(input)) return DELIMITER;
 
-            // (START, letter | _) = IN_IDENTIFIER
+            // (START, letter | _) = IDENTIFIER
             // begin accumulating identifier
-            if (is_identifier_start(input)) return IN_IDENTIFIER;
+            if (is_identifier_start(input)) return IDENTIFIER;
 
-            // (START, digit) = IN_NUMBER
-            if (is_digit(input)) return IN_NUMBER;
+            // (START, digit) = NUMBER
+            if (is_digit(input)) return NUMBER;
 
-            // (START, operator_char) = IN_OPERATOR
-            if (is_operator(input)) return IN_OPERATOR;
+            // (START, operator_char) = OPERATOR
+            if (is_operator(input)) return OPERATOR;
 
             // (START, other) = ERROR
             // unrecognised character
             return ERROR;
 
-        case IN_DELIMITER:
+        case DELIMITER:
             return START;
 
-        case IN_IDENTIFIER:
-            // (IN_IDENTIFIER, letter | digit | _) = IN_IDENTIFIER
+        case IDENTIFIER:
+            // (IDENTIFIER, letter | digit | _) = IDENTIFIER
             // continue accumulating
-            if (is_identifier_continue(input)) return IN_IDENTIFIER;
+            if (is_identifier_continue(input)) return IDENTIFIER;
             // (IN_ID, other) = START
             // token ends
             return START;
 
-        case IN_NUMBER:
-            // (IN_NUMBER, digit) = IN_NUMBER
+        case NUMBER:
+            // (NUMBER, digit) = NUMBER
             // continue accumulating
-            if (is_digit(input)) return IN_NUMBER;
-            // (IN_NUMBER, other) = START
+            if (is_digit(input)) return NUMBER;
+            // (NUMBER, other) = START
             // token ends
             return START;
 
-        case IN_OPERATOR:
+        case OPERATOR:
             return START;
 
         case ERROR:
@@ -154,22 +154,22 @@ int main(int argc, char **argv) {
 
         switch (currentState) {
             case START:
-                if (next == IN_DELIMITER) {
+                if (next == DELIMITER) {
                     // delimiter is a single character token
                     // log immediately without accumulation
                     char buf[2] = {(char) current_character, '\0'};
                     logger(buf, TOKEN_DELIMITER);
                     next = START;
-                } else if (next == IN_IDENTIFIER) {
+                } else if (next == IDENTIFIER) {
                     // start a new identifier
                     // reset write pointer and store first char.
                     write = lexeme;
                     *write++ = (char) current_character;
-                } else if (next == IN_NUMBER) {
+                } else if (next == NUMBER) {
                     // start accumulating digits
                     write = lexeme;
                     *write++ = (char) current_character;
-                } else if (next == IN_OPERATOR) {
+                } else if (next == OPERATOR) {
                     // operator is a single character token
                     // log immediately without accumulation
                     char buf[2] = {(char) current_character, '\0'};
@@ -181,8 +181,8 @@ int main(int argc, char **argv) {
                 }
                 break;
 
-            case IN_IDENTIFIER:
-                if (next == IN_IDENTIFIER) {
+            case IDENTIFIER:
+                if (next == IDENTIFIER) {
                     *write++ = (char) current_character;
                 } else {
                     // identifier ended
@@ -203,8 +203,8 @@ int main(int argc, char **argv) {
                 }
                 break;
 
-            case IN_NUMBER:
-                if (next == IN_NUMBER) {
+            case NUMBER:
+                if (next == NUMBER) {
                     *write++ = (char) current_character;
                 } else {
                     // number ended
@@ -224,10 +224,10 @@ int main(int argc, char **argv) {
                 }
                 break;
 
-            case IN_DELIMITER:
+            case DELIMITER:
                 break;
 
-            case IN_OPERATOR:
+            case OPERATOR:
                 break;
         }
 
@@ -236,12 +236,12 @@ int main(int argc, char **argv) {
     }
 
     // flush any identifier still accumulated at end
-    if (currentState == IN_IDENTIFIER || currentState == IN_NUMBER) {
+    if (currentState == IDENTIFIER || currentState == NUMBER) {
         *write = '\0';
         size_t length = (size_t) (write - lexeme);
         char *token = malloc(length + 1);
         memcpy(token, lexeme, length + 1);
-        if (currentState == IN_IDENTIFIER) {
+        if (currentState == IDENTIFIER) {
             TokenType type = classify_identifier(token);
             logger(token, type);
         } else {
