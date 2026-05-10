@@ -69,9 +69,10 @@ TokenType classify_identifier(const char *lexeme) {
 }
 
 // Prints a token to stdout in the standard output format.
-void logger(const char *lexeme, TokenType type) {
+void logger(const char *lexeme, TokenType type, int token_line, int token_col) {
     const char *names[] = {"DELIMITER", "IDENTIFIER", "KEYWORD", "NUMBER", "OPERATOR"};
-    printf("%-10s \"%s\"\n", names[type], lexeme);
+    printf("Line %2d, Column %2d: %-10s \"%s\"\n", token_line, token_col, names[type], lexeme);
+
 }
 
 // This function embodies the transition function δ.
@@ -159,9 +160,25 @@ int main(int argc, char **argv) {
     char *write = lexeme;
     char *limit = lexeme + LEXEME_MAX - 1;
 
+    int token_line = 1;
+    int token_col  = 1;
+
+    int line = 1, col = 1;
+    int prev_col = 1;
+
     // process each character of the input file.
     char current_character;
     while ((current_character = fgetc(f)) != EOF) {
+        prev_col = col;
+        int just_read_line = line;
+        int just_read_col  = prev_col;
+        if (current_character == '\n') {
+            line++;
+            col = 1;
+        } else {
+            col++;
+        }
+
         State next = transition(currentState, current_character);
 
         switch (currentState) {
@@ -170,7 +187,7 @@ int main(int argc, char **argv) {
                     // delimiter is a single character token
                     // log immediately without accumulation
                     char buf[2] = {(char) current_character, '\0'};
-                    logger(buf, TOKEN_DELIMITER);
+                    logger(buf, TOKEN_DELIMITER, token_line, token_col);
                     next = START;
                 } else if (next == IDENTIFIER) {
                     // start a new identifier
@@ -185,7 +202,7 @@ int main(int argc, char **argv) {
                     // operator is a single character token
                     // log immediately without accumulation
                     char buf[2] = {(char) current_character, '\0'};
-                    logger(buf, TOKEN_OPERATOR);
+                    logger(buf, TOKEN_OPERATOR, token_line, token_col);
                     next = START;
                 } else if (next == ERROR) {
                     // Reset the write pointer and store the malformed character
@@ -193,6 +210,8 @@ int main(int argc, char **argv) {
                     // accumulate subsequent characters
                     *write++ = (char) current_character;
                 }
+                token_line = just_read_line;
+                token_col  = just_read_col;
                 break;
 
             case IDENTIFIER:
@@ -207,13 +226,18 @@ int main(int argc, char **argv) {
                     memcpy(token, lexeme, length + 1);
 
                     TokenType type = classify_identifier(token);
-                    logger(token, type);
+                    logger(token, type, token_line, token_col);
                     free(token);
 
                     ungetc(current_character, f);
 
                     next = START;
                     write = lexeme;
+
+                    if (current_character == '\n') {
+                        line--;
+                    }
+                    col = prev_col;
                 }
                 break;
 
@@ -230,13 +254,18 @@ int main(int argc, char **argv) {
                     char *token = malloc(length + 1);
                     memcpy(token, lexeme, length + 1);
 
-                    logger(token, TOKEN_NUMBER);
+                    logger(token, TOKEN_NUMBER, token_line, token_col);
                     free(token);
 
                     ungetc(current_character, f);
 
                     next = START;
                     write = lexeme;
+
+                    if (current_character == '\n') {
+                        line--;
+                    }
+                    col = prev_col;
                 }
                 break;
 
@@ -254,6 +283,8 @@ int main(int argc, char **argv) {
                     ungetc(current_character, f);
                     write = lexeme;
                     next = START;
+
+                    col = prev_col;
                 }
         }
 
@@ -269,15 +300,15 @@ int main(int argc, char **argv) {
         memcpy(token, lexeme, length + 1);
         if (currentState == IDENTIFIER) {
             TokenType type = classify_identifier(token);
-            logger(token, type);
+            logger(token, type, token_line, token_col);
         } else {
-            logger(token, TOKEN_NUMBER);
+            logger(token, TOKEN_NUMBER, token_line, token_col);
         }
         free(token);
     }
     else if (currentState == ERROR) {
         *write = '\0';
-        printf("ERROR: malformed token \"%s\"\n", lexeme);
+        printf("Line %2d, Column %2d: ERROR malformed token \"%s\"\n", token_line, token_col, lexeme);
     }
 
     fclose(f);
