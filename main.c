@@ -21,7 +21,8 @@ typedef enum {
     TOKEN_IDENTIFIER,
     TOKEN_KEYWORD,
     TOKEN_NUMBER,
-    TOKEN_OPERATOR
+    TOKEN_OPERATOR,
+    TOKEN_ERROR
 } TokenType;
 
 const char *KEYWORDS[] = {
@@ -69,9 +70,21 @@ TokenType classify_identifier(const char *lexeme) {
 }
 
 // Prints a token to stdout in the standard output format.
-void logger(const char *lexeme, TokenType type, int token_line, int token_col) {
-    const char *names[] = {"DELIMITER", "IDENTIFIER", "KEYWORD", "NUMBER", "OPERATOR"};
-    printf("Line %2d, Column %2d: %-10s \"%s\"\n", token_line, token_col, names[type], lexeme);
+void logger(FILE *out, const char *lexeme, TokenType type, int token_line, int token_col) {
+    const char *names[] = {"DELIMITER", "IDENTIFIER", "KEYWORD", "NUMBER", "OPERATOR", "ERROR"};
+    if (type == TOKEN_ERROR) {
+        printf("Line %2d, Column %2d: %-10s malformed token \"%s\"\n", token_line, token_col, names[type], lexeme);
+    }else {
+        printf("Line %2d, Column %2d: %-10s \"%s\"\n", token_line, token_col, names[type], lexeme);
+    }
+
+    if (out != NULL) {
+        if (type == TOKEN_ERROR) {
+            fprintf(out, "Line %2d, Column %2d: %-10s malformed token \"%s\"\n", token_line, token_col, names[type], lexeme);
+        }else {
+            fprintf(out, "Line %2d, Column %2d: %-10s \"%s\"\n", token_line, token_col, names[type], lexeme);
+        }
+    }
 
 }
 
@@ -153,6 +166,11 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    FILE *out = fopen("tokens.out", "w");
+    if (!out) {
+        printf("could not open tokens.out for writing; stdout only");
+    }
+
     // Initialise current state as START
     State currentState = START;
 
@@ -167,7 +185,8 @@ int main(int argc, char **argv) {
     int prev_col = 1;
 
     // process each character of the input file.
-    char current_character;
+    int current_character;
+
     while ((current_character = fgetc(f)) != EOF) {
         prev_col = col;
         int just_read_line = line;
@@ -184,34 +203,47 @@ int main(int argc, char **argv) {
         switch (currentState) {
             case START:
                 if (next == DELIMITER) {
+                    token_line = just_read_line;
+                    token_col  = just_read_col;
+
                     // delimiter is a single character token
                     // log immediately without accumulation
                     char buf[2] = {(char) current_character, '\0'};
-                    logger(buf, TOKEN_DELIMITER, token_line, token_col);
+                    logger(out, buf, TOKEN_DELIMITER, token_line, token_col);
                     next = START;
                 } else if (next == IDENTIFIER) {
+                    token_line = just_read_line;
+                    token_col  = just_read_col;
+
                     // start a new identifier
                     // reset write pointer and store first char.
                     write = lexeme;
                     *write++ = (char) current_character;
                 } else if (next == NUMBER) {
+                    token_line = just_read_line;
+                    token_col  = just_read_col;
+
                     // start accumulating digits
                     write = lexeme;
                     *write++ = (char) current_character;
                 } else if (next == OPERATOR) {
+                    token_line = just_read_line;
+                    token_col  = just_read_col;
+
                     // operator is a single character token
                     // log immediately without accumulation
                     char buf[2] = {(char) current_character, '\0'};
-                    logger(buf, TOKEN_OPERATOR, token_line, token_col);
+                    logger(out, buf, TOKEN_OPERATOR, token_line, token_col);
                     next = START;
                 } else if (next == ERROR) {
+                    token_line = just_read_line;
+                    token_col  = just_read_col;
+
                     // Reset the write pointer and store the malformed character
                     write = lexeme;
                     // accumulate subsequent characters
                     *write++ = (char) current_character;
                 }
-                token_line = just_read_line;
-                token_col  = just_read_col;
                 break;
 
             case IDENTIFIER:
@@ -226,7 +258,7 @@ int main(int argc, char **argv) {
                     memcpy(token, lexeme, length + 1);
 
                     TokenType type = classify_identifier(token);
-                    logger(token, type, token_line, token_col);
+                    logger(out, token, type, token_line, token_col);
                     free(token);
 
                     ungetc(current_character, f);
@@ -254,7 +286,7 @@ int main(int argc, char **argv) {
                     char *token = malloc(length + 1);
                     memcpy(token, lexeme, length + 1);
 
-                    logger(token, TOKEN_NUMBER, token_line, token_col);
+                    logger(out, token, TOKEN_NUMBER, token_line, token_col);
                     free(token);
 
                     ungetc(current_character, f);
@@ -279,11 +311,14 @@ int main(int argc, char **argv) {
                     *write++ = (char) current_character;
                 } else {
                     *write = '\0';
-                    printf("ERROR: malformed token \"%s\"\n", lexeme);
+                    logger(out, lexeme, TOKEN_ERROR, token_line, token_col);
                     ungetc(current_character, f);
                     write = lexeme;
                     next = START;
 
+                    if (current_character == '\n') {
+                        line--;
+                    }
                     col = prev_col;
                 }
         }
@@ -300,17 +335,18 @@ int main(int argc, char **argv) {
         memcpy(token, lexeme, length + 1);
         if (currentState == IDENTIFIER) {
             TokenType type = classify_identifier(token);
-            logger(token, type, token_line, token_col);
+            logger(out, token, type, token_line, token_col);
         } else {
-            logger(token, TOKEN_NUMBER, token_line, token_col);
+            logger(out, token, TOKEN_NUMBER, token_line, token_col);
         }
         free(token);
     }
     else if (currentState == ERROR) {
         *write = '\0';
-        printf("Line %2d, Column %2d: ERROR malformed token \"%s\"\n", token_line, token_col, lexeme);
+        logger(out, lexeme, TOKEN_ERROR, token_line, token_col);
     }
 
+    if (out) fclose(out);
     fclose(f);
 
     return 0;
