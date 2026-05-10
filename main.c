@@ -26,7 +26,7 @@ typedef enum {
 } TokenType;
 
 const char *KEYWORDS[] = {
-    "int", "char", "if", "else", "while", "for", "do", "return", NULL
+    "int", "char", "if", "else", "while", "for", "do", "return"
 };
 
 int is_whitespace(int c) {
