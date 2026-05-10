@@ -25,7 +25,7 @@ typedef enum {
 } TokenType;
 
 const char *KEYWORDS[] = {
-    "int", "char", "if", "else", "while", "for", "do", "return"
+    "int", "char", "if", "else", "while", "for", "do", "return", NULL
 };
 
 int is_whitespace(int c) {
@@ -52,6 +52,13 @@ int is_identifier_start(int c) {
 // if the character can continue an identifier (letter, digit, or underscore)
 int is_identifier_continue(int c) {
     return is_identifier_start(c) || (c >= '0' && c <= '9');
+}
+
+// sync points for panic recovery
+// marks the end of a malformed token to resume cleanly
+int is_sync(int c) {
+    // whitespace, delimiter, operator, and EOF are sync points
+    return is_whitespace(c) || is_delimiter(c) || is_operator(c);
 }
 
 TokenType classify_identifier(const char *lexeme) {
@@ -110,6 +117,8 @@ State transition(State currentState, char input) {
             // (NUMBER, digit) = NUMBER
             // continue accumulating
             if (is_digit(input)) return NUMBER;
+            // malformed token sequences such as 123abc
+            if (is_identifier_start(input)) return ERROR;
             // (NUMBER, other) = START
             // token ends
             return START;
@@ -118,9 +127,12 @@ State transition(State currentState, char input) {
             return START;
 
         case ERROR:
-            // skip one unrecognise character
-            // return to START
-            return START;
+            // (ERROR, whitespace | delimiter | operator) = START
+            // back up sync character then log
+            if (is_sync(input)) return START;
+            // (ERROR, digit | letter | _) = ERROR
+            // keep collecting malformed sequence
+            return ERROR;
     }
 
     // This return serves as a fallback.
@@ -176,8 +188,10 @@ int main(int argc, char **argv) {
                     logger(buf, TOKEN_OPERATOR);
                     next = START;
                 } else if (next == ERROR) {
-                    printf("ERROR: unrecognised character '%c'\n", current_character);
-                    next = START;
+                    // Reset the write pointer and store the malformed character
+                    write = lexeme;
+                    // accumulate subsequent characters
+                    *write++ = (char) current_character;
                 }
                 break;
 
@@ -206,6 +220,8 @@ int main(int argc, char **argv) {
             case NUMBER:
                 if (next == NUMBER) {
                     *write++ = (char) current_character;
+                } else if (next == ERROR) {
+                    *write++ = (char) current_character;
                 } else {
                     // number ended
                     *write = '\0';
@@ -229,6 +245,16 @@ int main(int argc, char **argv) {
 
             case OPERATOR:
                 break;
+            case ERROR:
+                if (next == ERROR) {
+                    *write++ = (char) current_character;
+                } else {
+                    *write = '\0';
+                    printf("ERROR: malformed token \"%s\"\n", lexeme);
+                    ungetc(current_character, f);
+                    write = lexeme;
+                    next = START;
+                }
         }
 
         // transition to the next state based on the input
@@ -248,6 +274,10 @@ int main(int argc, char **argv) {
             logger(token, TOKEN_NUMBER);
         }
         free(token);
+    }
+    else if (currentState == ERROR) {
+        *write = '\0';
+        printf("ERROR: malformed token \"%s\"\n", lexeme);
     }
 
     fclose(f);
