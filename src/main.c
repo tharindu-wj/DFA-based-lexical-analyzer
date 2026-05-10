@@ -2,17 +2,6 @@
 #include "lexer.h"
 #include "logger.h"
 
-// maximum number of characters in a single lexeme
-#define LEXEME_MAX 256
-
-
-// sync points for panic recovery
-// marks the end of a malformed token to resume cleanly
-int is_sync(int c) {
-    // whitespace, delimiter, operator, and EOF are sync points
-    return is_whitespace(c) || is_delimiter(c) || is_operator(c);
-}
-
 int main(int argc, char **argv) {
     // reads from a file
     if (argc < 2) {
