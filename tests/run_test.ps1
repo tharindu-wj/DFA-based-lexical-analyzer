@@ -7,8 +7,8 @@ $input = Join-Path $PSScriptRoot "inputs\$Name.c"
 $expected = Join-Path $PSScriptRoot "expected\$Name.txt"
 
 # Normalise: strip all \r, then trim outer whitespace
-$actual_text = ((& $lexer $input | Out-String) -replace "`r", "").Trim()
-$expected_text = ((Get-Content $expected -Raw) -replace "`r", "").Trim()
+$actual_text = ([string]((& $lexer $input | Out-String)) -replace "`r", "").Trim()
+$expected_text = ([string](Get-Content $expected -Raw) -replace "`r", "").Trim()
 
 if ($actual_text -eq $expected_text) {
     Write-Host "PASS  $Name" -ForegroundColor Green
