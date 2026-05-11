@@ -84,4 +84,6 @@ State dfa_transition(State currentState, char input) {
             // keep collecting malformed sequence
             return ERROR;
     }
+    
+    return currentState;
 }

@@ -96,15 +96,8 @@ int run_lexer(FILE *input) {
                 } else {
                     // identifier ended
                     *write = '\0';
-                    size_t length = (size_t) (write - lexeme);
-
-                    char *token = malloc(length + 1);
-                    memcpy(token, lexeme, length + 1);
-
-                    TokenType type = classify_identifier(token);
-                    logger(token, type, token_line, token_col);
-                    free(token);
-
+                    TokenType type = classify_identifier(lexeme);
+                    logger(lexeme, type, token_line, token_col);
                     ungetc(current_character, input);
 
                     next = START;
@@ -130,14 +123,7 @@ int run_lexer(FILE *input) {
                 } else {
                     // number ended
                     *write = '\0';
-                    size_t length = (size_t) (write - lexeme);
-
-                    char *token = malloc(length + 1);
-                    memcpy(token, lexeme, length + 1);
-
-                    logger(token, TOKEN_NUMBER, token_line, token_col);
-                    free(token);
-
+                    logger(lexeme, TOKEN_NUMBER, token_line, token_col);
                     ungetc(current_character, input);
 
                     next = START;
@@ -159,6 +145,13 @@ int run_lexer(FILE *input) {
                 if (next == ERROR) {
                     if (write < limit) {
                         *write++ = (char) current_character;
+                    } else {
+                        // *write = '\0';
+                        // logger(lexeme, TOKEN_ERROR, token_line, token_col);
+                        // write = lexeme;
+                        // token_line = just_read_line;
+                        // token_col = just_read_col;
+                        // *write++ = (char) current_character;
                     }
                 } else {
                     *write = '\0';
@@ -179,18 +172,13 @@ int run_lexer(FILE *input) {
     }
 
     // flush any identifier still accumulated at end
-    if (currentState == IDENTIFIER || currentState == NUMBER) {
+    if (currentState == IDENTIFIER) {
         *write = '\0';
-        size_t length = (size_t) (write - lexeme);
-        char *token = malloc(length + 1);
-        memcpy(token, lexeme, length + 1);
-        if (currentState == IDENTIFIER) {
-            TokenType type = classify_identifier(token);
-            logger(token, type, token_line, token_col);
-        } else {
-            logger(token, TOKEN_NUMBER, token_line, token_col);
-        }
-        free(token);
+        TokenType type = classify_identifier(lexeme);
+        logger(lexeme, type, token_line, token_col);
+    } else if (currentState == NUMBER) {
+        *write = '\0';
+        logger(lexeme, TOKEN_NUMBER, token_line, token_col);
     }
     else if (currentState == ERROR) {
         *write = '\0';

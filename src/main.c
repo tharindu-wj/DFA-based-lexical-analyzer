@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
     const char *output_path = (argc >= 3) ? argv[2] : "tokens.out";
     FILE *output = fopen(output_path, "w");
     if (output == NULL) {
-        printf("Error: could not open '%s'\n", argv[2]);
+        printf("Error: could not open '%s'\n", output_path);
         fclose(input);
         return 1;
     }
