@@ -12,7 +12,7 @@ elseif(MSVC)
 endif()
 
 # Optimisation for 50 KB constraint
-set(CMAKE_C_FLAGS_RELEASE "-Os")
+set(CMAKE_C_FLAGS_RELEASE "-Os -s")
 
 add_executable(lexer
         src/main.c

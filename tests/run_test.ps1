@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory=$true)][string]$Name
 )
 
-$lexer = Join-Path $PSScriptRoot "..\cmake-build-debug\lexer.exe"
+$lexer = Join-Path $PSScriptRoot "..\cmake-build-release\lexer.exe"
 $input = Join-Path $PSScriptRoot "inputs\$Name.c"
 $expected = Join-Path $PSScriptRoot "expected\$Name.txt"
 
