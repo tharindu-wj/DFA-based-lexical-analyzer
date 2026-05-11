@@ -87,7 +87,12 @@ int run_lexer(FILE *input) {
 
             case IDENTIFIER:
                 if (next == IDENTIFIER) {
-                    *write++ = (char) current_character;
+                    // accumulated identifier longer than the buffer
+                    if (write >= limit) {
+                        next = ERROR;
+                    } else {
+                        *write++ = (char) current_character;
+                    }
                 } else {
                     // identifier ended
                     *write = '\0';
@@ -114,7 +119,12 @@ int run_lexer(FILE *input) {
 
             case NUMBER:
                 if (next == NUMBER) {
-                    *write++ = (char) current_character;
+                    // accumulated number longer than the buffer
+                    if (write >= limit) {
+                        next = ERROR;
+                    } else {
+                        *write++ = (char) current_character;
+                    }
                 } else if (next == ERROR) {
                     *write++ = (char) current_character;
                 } else {
@@ -147,7 +157,9 @@ int run_lexer(FILE *input) {
                 break;
             case ERROR:
                 if (next == ERROR) {
-                    *write++ = (char) current_character;
+                    if (write < limit) {
+                        *write++ = (char) current_character;
+                    }
                 } else {
                     *write = '\0';
                     logger(lexeme, TOKEN_ERROR, token_line, token_col);
