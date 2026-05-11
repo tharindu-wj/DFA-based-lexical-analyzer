@@ -30,5 +30,5 @@ int main(int argc, char **argv) {
     if (output) fclose(output);
     fclose(input);
 
-    return 0;
+    return result;
 }

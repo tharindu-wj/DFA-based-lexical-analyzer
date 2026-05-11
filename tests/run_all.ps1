@@ -1,6 +1,7 @@
 $tests = @(
     "test_1",
-    "test_2"
+    "test_2",
+    "test_3a"
 )
 
 foreach ($name in $tests) {

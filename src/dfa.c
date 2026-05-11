@@ -5,7 +5,7 @@ int is_whitespace(int c) {
 }
 
 int is_delimiter(int c) {
-    return c == ';' || c == ',' || c == '(' || c == ')' || c == '{' || c == '}' || c == '[' || c == ']';
+    return c == ';' || c == ',' || c == '(' || c == ')' || c == '{' || c == '}' || c == '[' || c == ']' || c == '.';
 }
 
 int is_digit(int c) {
@@ -16,18 +16,15 @@ int is_operator(int c) {
     return c == '+' || c == '-' || c == '*' || c == '/' || c == '=' || c == '<' || c == '>' || c == '!';
 }
 
-// if the character can start an identifier (letter or underscore)
-int is_identifier_start(int c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+int is_letter(int c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-// if the character can continue an identifier (letter, digit, or underscore)
-int is_identifier_continue(int c) {
-    return is_identifier_start(c) || (c >= '0' && c <= '9');
+int is_underscore(int c) {
+    return c == '_';
 }
 
-
-// This function embodies the transition function δ.
+// This function embodies the transition function of the DFA.
 // It takes the current state and the next input character,
 // then returns the next state according to our DFA rules.
 State dfa_transition(State currentState, char input) {
@@ -43,7 +40,7 @@ State dfa_transition(State currentState, char input) {
 
             // (START, letter | _) = IDENTIFIER
             // begin accumulating identifier
-            if (is_identifier_start(input)) return IDENTIFIER;
+            if (is_underscore(input) || is_letter(input)) return IDENTIFIER;
 
             // (START, digit) = NUMBER
             if (is_digit(input)) return NUMBER;
@@ -61,7 +58,7 @@ State dfa_transition(State currentState, char input) {
         case IDENTIFIER:
             // (IDENTIFIER, letter | digit | _) = IDENTIFIER
             // continue accumulating
-            if (is_identifier_continue(input)) return IDENTIFIER;
+            if (is_underscore(input) || is_letter(input) || is_digit(input)) return IDENTIFIER;
             // (IN_ID, other) = START
             // token ends
             return START;
@@ -71,7 +68,7 @@ State dfa_transition(State currentState, char input) {
             // continue accumulating
             if (is_digit(input)) return NUMBER;
             // malformed token sequences such as 123abc
-            if (is_identifier_start(input)) return ERROR;
+            if (is_underscore(input) || is_letter(input)) return ERROR;
             // (NUMBER, other) = START
             // token ends
             return START;
@@ -87,7 +84,4 @@ State dfa_transition(State currentState, char input) {
             // keep collecting malformed sequence
             return ERROR;
     }
-
-    // This return serves as a fallback.
-    return currentState;
 }
