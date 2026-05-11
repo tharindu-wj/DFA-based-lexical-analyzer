@@ -146,12 +146,12 @@ int run_lexer(FILE *input) {
                     if (write < limit) {
                         *write++ = (char) current_character;
                     } else {
-                        // *write = '\0';
-                        // logger(lexeme, TOKEN_ERROR, token_line, token_col);
-                        // write = lexeme;
-                        // token_line = just_read_line;
-                        // token_col = just_read_col;
-                        // *write++ = (char) current_character;
+                        *write = '\0';
+                        logger(lexeme, TOKEN_ERROR, token_line, token_col);
+                        write = lexeme;
+                        token_line = just_read_line;
+                        token_col = just_read_col;
+                        *write++ = (char) current_character;
                     }
                 } else {
                     *write = '\0';
